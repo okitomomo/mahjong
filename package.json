@@ -1,13 +1,13 @@
 {
   "name": "tailwind-vite-docker",
   "version": "1.0.0",
-  "homepage": "https://okitomomo.github.io/Mahjong/",
+  "homepage": "https://okitomomo.github.io/mahjong/",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
+    "deploy": "gh-pages -d dist --dotfiles --nojekyll",
     "deploy:firebase": "npm run build && firebase deploy",
     "deploy:rules": "firebase deploy --only firestore:rules",
     "test": "vitest --run",

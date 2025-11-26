@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   root: './',
-  base: '/Mahjong/',
+  base: '/mahjong/',
   server: {
     host: true,    // コンテナ外からアクセス可能に
     watch: {
