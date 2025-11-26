@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 部屋コレクション
+    // 誰でも読み書き可能（認証なしシステム）
+    match /rooms/{roomId} {
+      allow read, write: if true;
+      
+      // メンバーサブコレクション
+      // 誰でも読み書き可能
+      match /members/{memberId} {
+        allow read, write: if true;
+      }
+      
+      // 半荘記録サブコレクション
+      // 誰でも読み書き可能
+      match /games/{gameId} {
+        allow read, write: if true;
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/node_modules   # ← これ追加して、コンテナ内のnode_modulesを守る！
+      - C:\Users\tokit\.ssh:/root/.ssh:rw
+    command: npm run dev
