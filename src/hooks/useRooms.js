@@ -52,10 +52,10 @@ export function useRooms() {
    * 部屋を作成
    * Create a new room
    */
-  const createRoom = async () => {
+  const createRoom = async (creatorUserId) => {
     try {
       setError(null);
-      const roomId = await createRoomService();
+      const roomId = await createRoomService(creatorUserId);
       return roomId;
     } catch (err) {
       const errorMessage = getErrorMessage(err);

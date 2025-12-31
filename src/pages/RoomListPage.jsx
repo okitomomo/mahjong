@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase.js';
-import { useRooms } from '../hooks/index.js';
+import { useRooms, useUserId } from '../hooks/index.js';
 import { useToast } from '../hooks/useToast.js';
 import { Breadcrumb } from '../components/Breadcrumb.jsx';
 import { ToastContainer } from '../components/Toast.jsx';
@@ -18,6 +18,7 @@ import { extractUniqueMembers, formatMemberNames } from '../utils/index.js';
 export function RoomListPage() {
   const navigate = useNavigate();
   const { rooms, loading, error, createRoom, deleteRoom } = useRooms();
+  const { userId } = useUserId();
   const { toasts, removeToast, showError } = useToast();
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -52,9 +53,14 @@ export function RoomListPage() {
   }, [rooms]);
 
   const handleCreateRoom = async () => {
+    if (!userId) {
+      showError('ユーザーIDが取得できませんでした');
+      return;
+    }
+
     try {
       setCreating(true);
-      const roomId = await createRoom();
+      const roomId = await createRoom(userId);
       navigate(`/rooms/${roomId}`, { state: { isNew: true } });
     } catch (err) {
       console.error('Failed to create room:', err);
@@ -158,10 +164,20 @@ export function RoomListPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0 mr-2">
-                      <h3 className="text-base font-semibold text-gray-900 truncate">
-                        {room.name}
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-base font-semibold text-gray-900 truncate">
+                          {room.name}
+                        </h3>
+                        {room.isSettled && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            清算済み
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
                         {memberNames}
                       </p>
                     </div>

@@ -17,6 +17,12 @@ service cloud.firestore {
       match /games/{gameId} {
         allow read, write: if true;
       }
+      
+      // チップ受渡履歴サブコレクション
+      // 誰でも読み書き可能
+      match /chipTransfers/{transferId} {
+        allow read, write: if true;
+      }
     }
   }
 }

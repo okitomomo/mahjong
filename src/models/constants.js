@@ -73,12 +73,12 @@ export const DEFAULT_VALUES = {
   },
   YAKITORI: {
     ENABLED: false,
-    PENALTY: -30,
+    PENALTY: 30,
   },
   CHIP: {
     ENABLED: false,
-    INITIAL_COUNT: 0,
-    POINTS_PER_CHIP: 5,
+    INITIAL_COUNT: 20,
+    POINTS_PER_CHIP: 10,
   },
 };
 
@@ -90,6 +90,7 @@ export const COLLECTIONS = {
   ROOMS: 'rooms',
   MEMBERS: 'members',
   GAMES: 'games',
+  CHIP_TRANSFERS: 'chipTransfers',
 };
 
 /**

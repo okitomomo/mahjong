@@ -12,7 +12,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { doc, onSnapshot, collection, query, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase.js';
 import { roomConverter, memberConverter, gameConverter, COLLECTIONS } from '../models/index.js';
-import { updateRoomSettings as updateRoomSettingsService } from '../services/index.js';
+import { updateRoomSettings as updateRoomSettingsService, settleRoom as settleRoomService } from '../services/index.js';
 import { getErrorMessage, logError } from '../utils/index.js';
 
 /**
@@ -27,7 +27,8 @@ import { getErrorMessage, logError } from '../utils/index.js';
  *   currentGame: Game | null,
  *   loading: boolean, 
  *   error: string | null, 
- *   updateSettings: (settings: RoomSettings) => Promise<void>
+ *   updateSettings: (settings: RoomSettings) => Promise<void>,
+ *   settleRoom: () => Promise<void>
  * }}
  */
 export function useRoom(roomId) {
@@ -132,6 +133,22 @@ export function useRoom(roomId) {
     }
   };
 
+  /**
+   * 部屋を清算
+   * Settle room
+   */
+  const settleRoom = async () => {
+    try {
+      setError(null);
+      await settleRoomService(roomId);
+    } catch (err) {
+      const errorMessage = getErrorMessage(err);
+      setError(errorMessage);
+      logError(err, { context: 'useRoom.settleRoom', roomId });
+      throw err;
+    }
+  };
+
   return {
     room,
     members,
@@ -140,5 +157,6 @@ export function useRoom(roomId) {
     loading,
     error,
     updateSettings,
+    settleRoom,
   };
 }

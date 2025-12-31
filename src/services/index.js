@@ -10,6 +10,7 @@ export {
   updateRoomSettings,
   deleteRoom,
   updateCurrentGameId,
+  settleRoom,
 } from './roomService.js';
 
 export {

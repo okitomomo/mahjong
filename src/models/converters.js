@@ -46,8 +46,8 @@ export function getDefaultOkaSettings() {
  */
 export function getDefaultYakitoriSettings() {
   return {
-    enabled: true,
-    penalty: -30,
+    enabled: false,
+    penalty: 30,
   };
 }
 
@@ -59,8 +59,8 @@ export function getDefaultYakitoriSettings() {
 export function getDefaultChipSettings() {
   return {
     enabled: false,
-    initialCount: 0,
-    pointsPerChip: 5,
+    initialCount: 20,
+    pointsPerChip: 10,
   };
 }
 
@@ -90,7 +90,7 @@ export const roomConverter = {
    * @returns {Object}
    */
   toFirestore: (room) => {
-    return {
+    const data = {
       name: room.name,
       createdAt: room.createdAt,
       settings: {
@@ -113,7 +113,15 @@ export const roomConverter = {
         },
       },
       currentGameId: room.currentGameId ?? null,
+      isSettled: room.isSettled ?? false,
     };
+    
+    // 清算日時は清算済みの場合のみ追加
+    if (room.settledAt) {
+      data.settledAt = room.settledAt;
+    }
+    
+    return data;
   },
 
   /**
@@ -148,6 +156,8 @@ export const roomConverter = {
         },
       },
       currentGameId: data.currentGameId ?? null,
+      isSettled: data.isSettled ?? false,
+      settledAt: data.settledAt ?? null,
     };
   },
 };
@@ -288,14 +298,18 @@ export function generateRoomName() {
 /**
  * 新しい部屋オブジェクトを作成
  * Create a new Room object
+ * @param {string} creatorUserId - 作成者のユーザーID (Creator user ID)
  * @returns {Omit<Room, 'id'>}
  */
-export function createNewRoom() {
+export function createNewRoom(creatorUserId) {
   return {
     name: generateRoomName(),
     createdAt: Timestamp.now(),
+    creatorUserId: creatorUserId,
     settings: getDefaultRoomSettings(),
     currentGameId: null,
+    isSettled: false,
+    settledAt: null,
   };
 }
 

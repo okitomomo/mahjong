@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+</head>
+<body>
+    <canvas id="canvas32" width="32" height="32" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    <canvas id="canvas152" width="152" height="152" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    <canvas id="canvas180" width="180" height="180" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    
+    <div>
+        <button onclick="downloadIcon('canvas32', 'favicon.png')">Download 32x32</button>
+        <button onclick="downloadIcon('canvas152', 'apple-touch-icon-152x152.png')">Download 152x152</button>
+        <button onclick="downloadIcon('canvas180', 'apple-touch-icon-180x180.png')">Download 180x180</button>
+        <button onclick="downloadIcon('canvas180', 'apple-touch-icon.png')">Download 180x180 (main)</button>
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const scale = size / 32;
+            
+            // Background
+            ctx.fillStyle = '#2563eb';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Rounded corners effect
+            ctx.fillStyle = '#2563eb';
+            ctx.fillRect(0, 0, size, size);
+            
+            // White rectangle (score board)
+            ctx.fillStyle = 'white';
+            const margin = 6 * scale;
+            const rectWidth = 20 * scale;
+            const rectHeight = 16 * scale;
+            ctx.fillRect(margin, 8 * scale, rectWidth, rectHeight);
+            
+            // Score lines
+            ctx.fillStyle = '#2563eb';
+            const lineHeight = 2 * scale;
+            ctx.fillRect(8 * scale, 10 * scale, 16 * scale, lineHeight);
+            ctx.fillRect(8 * scale, 14 * scale, 16 * scale, lineHeight);
+            ctx.fillRect(8 * scale, 18 * scale, 16 * scale, lineHeight);
+            
+            // Colored dots (chips)
+            const dotRadius = 1 * scale;
+            const dotY = 22 * scale;
+            
+            ctx.fillStyle = '#ef4444'; // Red
+            ctx.beginPath();
+            ctx.arc(12 * scale, dotY, dotRadius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.fillStyle = '#10b981'; // Green
+            ctx.beginPath();
+            ctx.arc(16 * scale, dotY, dotRadius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.fillStyle = '#f59e0b'; // Yellow
+            ctx.beginPath();
+            ctx.arc(20 * scale, dotY, dotRadius, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        function downloadIcon(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Draw icons on page load
+        window.onload = function() {
+            drawIcon(document.getElementById('canvas32'), 32);
+            drawIcon(document.getElementById('canvas152'), 152);
+            drawIcon(document.getElementById('canvas180'), 180);
+        };
+    </script>
+</body>
+</html>

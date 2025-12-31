@@ -7,9 +7,11 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useRoom, useUserId, useMembers, useGames } from '../hooks/index.js';
 import { useToast } from '../hooks/useToast.js';
+import { useChipTransfer } from '../hooks/useChipTransfer.js';
 import { validateScoreRange, validateChipCountRange } from '../models/index.js';
 import { ScoreBoard } from '../components/ScoreBoard.jsx';
 import { RoomSettings } from '../components/RoomSettings.jsx';
+import { ChipTransferModal } from '../components/ChipTransferModal.jsx';
 import { Breadcrumb } from '../components/Breadcrumb.jsx';
 import { ToastContainer } from '../components/Toast.jsx';
 import { LoadingPage } from '../components/Loading.jsx';
@@ -17,20 +19,25 @@ import { LoadingPage } from '../components/Loading.jsx';
 export function RoomDetailPage() {
   const { roomId } = useParams();
   const location = useLocation();
-  const { room, members, games, currentGame, loading, error, updateSettings } = useRoom(roomId);
+  const { room, members, games, currentGame, loading, error, updateSettings, settleRoom } = useRoom(roomId);
   const { userId, getRoomName, setRoomName } = useUserId();
   const { currentUserMember, addMember } = useMembers(roomId);
   const { createGame, submitScore, error: gameError } = useGames(roomId, room?.currentGameId, room?.settings);
-  const { toasts, removeToast, showError } = useToast();
+  const { receiveChip, isReceiving } = useChipTransfer(roomId, currentUserMember);
+  const { toasts, removeToast, showError, showSuccess } = useToast();
   
   const [isNewRoom, setIsNewRoom] = useState(false);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [isSubmittingName, setIsSubmittingName] = useState(false);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
+  const [isSettling, setIsSettling] = useState(false);
   
   // スコア入力モーダル
   const [showScoreModal, setShowScoreModal] = useState(false);
+  
+  // チップ受渡モーダル
+  const [showChipTransferModal, setShowChipTransferModal] = useState(false);
   
   // ヘルプモーダル
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -46,9 +53,22 @@ export function RoomDetailPage() {
   const [scoreValidation, setScoreValidation] = useState({ valid: true });
   const [chipValidation, setChipValidation] = useState({ valid: true });
 
+  // 「清算する」ボタンの表示可否を判定
+  const canSettle = useMemo(() => {
+    if (!room || room.isSettled) {
+      return false;
+    }
+    
+    // 確定済みの半荘が1つ以上ある、または入力中の半荘がある場合に清算可能
+    const completedGames = games.filter(g => g.status === 'completed');
+    const inputtingGame = games.find(g => g.status === 'inputting');
+    
+    return completedGames.length > 0 || inputtingGame;
+  }, [room, games]);
+
   // 「新しい半荘を開始」ボタンの表示可否を判定
   const canStartNewGame = useMemo(() => {
-    if (!currentGame || validationError || !room) {
+    if (!currentGame || validationError || !room || room.isSettled) {
       return false;
     }
     
@@ -114,6 +134,48 @@ export function RoomDetailPage() {
     }
   };
 
+  // 清算を実行
+  const handleSettle = async () => {
+    if (isSettling) return;
+
+    // 入力中の半荘があるかチェック
+    const inputtingGame = games.find(g => g.status === 'inputting');
+    const hasInputtingGame = !!inputtingGame;
+    
+    // 入力中の半荘がある場合の警告メッセージ
+    let confirmMessage = '部屋を清算しますか？\n\n清算後は新しい半荘を開始できなくなります。';
+    
+    if (hasInputtingGame) {
+      // 入力済みのプレイヤーがいるかチェック
+      const playersWithScores = inputtingGame.results.filter(r => r.rawScore !== undefined);
+      
+      if (playersWithScores.length > 0) {
+        confirmMessage = `⚠️ 入力中の第${inputtingGame.gameNumber}回があります\n\n` +
+          `${playersWithScores.length}人が既に得点を入力していますが、この半荘は破棄されます。\n\n` +
+          '本当に清算しますか？\n\n清算後は新しい半荘を開始できなくなります。';
+      } else {
+        confirmMessage = `⚠️ 入力中の第${inputtingGame.gameNumber}回があります\n\n` +
+          'まだ誰も得点を入力していませんが、この半荘は破棄されます。\n\n' +
+          '本当に清算しますか？\n\n清算後は新しい半荘を開始できなくなります。';
+      }
+    }
+    
+    const confirmed = window.confirm(confirmMessage);
+    
+    if (!confirmed) return;
+
+    setIsSettling(true);
+    try {
+      await settleRoom();
+      // 成功メッセージは表示しない（リアルタイム更新で反映される）
+    } catch (err) {
+      console.error('Failed to settle room:', err);
+      showError('清算に失敗しました');
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
   // 新しい半荘を開始
   const handleCreateGame = async () => {
     if (isCreatingGame) return;
@@ -140,9 +202,27 @@ export function RoomDetailPage() {
     }
   };
 
+  // チップ受け取りを実行
+  const handleChipReceive = async (fromMemberId, fromMemberName, chipCount) => {
+    try {
+      await receiveChip(fromMemberId, fromMemberName, chipCount);
+      setShowChipTransferModal(false);
+      showSuccess(`${fromMemberName}から${chipCount}枚受け取りました`);
+    } catch (err) {
+      console.error('Failed to receive chip:', err);
+      // エラーはモーダル内で表示される
+    }
+  };
+
   // スコア入力モーダルを開く
   const handleOpenScoreModal = () => {
     if (!currentUserMember || !currentGame) return;
+    
+    // 清算済み部屋への入力は拒否
+    if (room.isSettled) {
+      showError('清算済みの部屋は修正できません');
+      return;
+    }
     
     // 確定済み半荘への入力は拒否
     if (currentGame.status === 'completed') {
@@ -280,6 +360,16 @@ export function RoomDetailPage() {
   return (
     <>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
+      {/* チップ受け取りモーダル */}
+      <ChipTransferModal
+        isOpen={showChipTransferModal}
+        onClose={() => setShowChipTransferModal(false)}
+        members={members}
+        currentUserMember={currentUserMember}
+        onReceive={handleChipReceive}
+        isSubmitting={isReceiving}
+      />
       
       {/* ヘルプモーダル */}
       {showHelpModal && (
@@ -744,7 +834,23 @@ export function RoomDetailPage() {
 
         {/* アクションボタン */}
         <div className="mb-4 flex flex-col gap-2">
-          {currentGame && (
+          {room.isSettled && (
+            <div className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-300 rounded-lg text-center">
+              <div className="flex items-center justify-center gap-2 text-gray-700">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="font-medium">清算済み</span>
+              </div>
+              {room.settledAt && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {room.settledAt.toDate().toLocaleString('ja-JP')}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {!room.isSettled && currentGame && (
             <button
               onClick={handleOpenScoreModal}
               disabled={!currentUserMember}
@@ -760,7 +866,8 @@ export function RoomDetailPage() {
                 : `第${currentGame.gameNumber}回 - 得点を入力`}
             </button>
           )}
-          {canStartNewGame && (
+          
+          {!room.isSettled && canStartNewGame && (
             <button
               onClick={handleCreateGame}
               disabled={isCreatingGame || !currentUserMember}
@@ -769,16 +876,49 @@ export function RoomDetailPage() {
               {isCreatingGame ? '作成中...' : `+ 第${games.filter(g => g.status === 'completed').length + 1}回 - 新しい半荘を開始`}
             </button>
           )}
+          
+          {!room.isSettled && room.settings.chip.enabled && currentUserMember && (
+            <button
+              onClick={() => setShowChipTransferModal(true)}
+              className="w-full px-4 py-3 bg-purple-600 text-white text-sm font-medium rounded-lg active:bg-purple-700 transition-colors shadow-sm"
+            >
+              🎯 チップを受け取る
+            </button>
+          )}
+          
+          {!room.isSettled && canSettle && (
+            <button
+              onClick={handleSettle}
+              disabled={isSettling || !currentUserMember}
+              className="w-full px-4 py-3 bg-orange-600 text-white text-sm font-medium rounded-lg active:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              {isSettling ? '清算中...' : '🏁 清算する'}
+            </button>
+          )}
         </div>
 
         {/* 部屋設定 */}
         <div className="mb-4">
-          <RoomSettings room={room} onUpdate={updateSettings} initiallyOpen={isNewRoom} />
+          <RoomSettings 
+            room={room} 
+            games={games} 
+            onUpdate={updateSettings} 
+            initiallyOpen={isNewRoom}
+            currentUserId={userId}
+            members={members}
+            isCreator={
+              // 新しい部屋の場合: creatorUserIdで判定
+              room?.creatorUserId !== undefined && room?.creatorUserId !== null
+                ? room?.creatorUserId === userId && userId !== null
+                // 既存の部屋の場合: 最初にメンバー登録した人を作成者として扱う
+                : members.length > 0 && members.sort((a, b) => a.createdAt - b.createdAt)[0]?.userId === userId
+            }
+          />
         </div>
 
         {/* スコアボード（半荘履歴統合） */}
         <div>
-          <ScoreBoard roomId={roomId} members={members} games={games} />
+          <ScoreBoard roomId={roomId} members={members} games={games} room={room} />
         </div>
         </div>
       </div>

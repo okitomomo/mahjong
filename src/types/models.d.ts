@@ -79,8 +79,12 @@ export interface Room {
   createdAt: Timestamp;
   /** 部屋設定 (Room settings) */
   settings: RoomSettings;
-  /** メンバーIDの配列（最大10人） (Array of member IDs - max 10) */
-  memberIds: string[];
+  /** 現在の半荘ID (Current game ID - null if no active game) */
+  currentGameId: string | null;
+  /** 清算済みフラグ (Settlement flag) */
+  isSettled: boolean;
+  /** 清算日時 (Settlement timestamp - null if not settled) */
+  settledAt: Timestamp | null;
 }
 
 /**

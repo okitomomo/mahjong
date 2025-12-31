@@ -9,3 +9,4 @@ export { useRoom } from './useRoom.js';
 export { useMembers } from './useMembers.js';
 export { useGames } from './useGames.js';
 export { useScoreCalculator } from './useScoreCalculator.js';
+export { useChipTransfer } from './useChipTransfer.js';
