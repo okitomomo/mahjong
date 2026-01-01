@@ -60,8 +60,8 @@ export function validateScoreRange(score) {
     return { valid: false, error: '得点は100点刻みで入力してください' };
   }
   
-  if (score < 0) {
-    return { valid: false, error: '得点は0点以上で入力してください' };
+  if (score < -200000) {
+    return { valid: false, error: '得点は-200,000点以上で入力してください' };
   }
   
   if (score > 200000) {

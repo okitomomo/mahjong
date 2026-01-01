@@ -247,7 +247,7 @@ describe('Property 6: 無効な得点はエラーを返す', () => {
   it('100の倍数でない得点の場合、validateScoreRangeはエラーを返す', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 0, max: 200000 }).filter(n => n % 100 !== 0), // not multiple of 100
+        fc.integer({ min: -200000, max: 200000 }).filter(n => n % 100 !== 0), // not multiple of 100 (including negative)
         (score) => {
           const result = validateScoreRange(score);
           
@@ -265,10 +265,10 @@ describe('Property 6: 無効な得点はエラーを返す', () => {
  * Validates: Requirements 3.4
  */
 describe('Property 8: 得点入力の妥当性検証', () => {
-  it('有効な得点（0-200000の範囲内、100の倍数）の場合、検証は成功する', () => {
+  it('有効な得点（-200000~200000の範囲内、100の倍数）の場合、検証は成功する', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 0, max: 2000 }), // multiplier
+        fc.integer({ min: -2000, max: 2000 }), // multiplier (including negative)
         (multiplier) => {
           const score = multiplier * 100;
           const result = validateScoreRange(score);
@@ -281,10 +281,24 @@ describe('Property 8: 得点入力の妥当性検証', () => {
     );
   });
 
-  it('負の得点の場合、検証は失敗する', () => {
+  it('負の得点でも100の倍数の場合、検証は成功する', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: -100000, max: -1 }), // negative score
+        fc.integer({ min: -1000, max: -1 }).map(n => Math.floor(n / 100) * 100), // negative score that is multiple of 100
+        (score) => {
+          const result = validateScoreRange(score);
+          
+          expect(result.valid).toBe(true);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('200000点を超える得点の場合、検証は失敗する', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 200001, max: 1000000 }), // score over limit
         (score) => {
           const result = validateScoreRange(score);
           
@@ -296,10 +310,10 @@ describe('Property 8: 得点入力の妥当性検証', () => {
     );
   });
 
-  it('200000点を超える得点の場合、検証は失敗する', () => {
+  it('-200000点を下回る得点の場合、検証は失敗する', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 200001, max: 1000000 }), // score over limit
+        fc.integer({ min: -1000000, max: -200001 }), // score under limit
         (score) => {
           const result = validateScoreRange(score);
           
