@@ -43,3 +43,8 @@ export {
   extractUniqueMembers,
   formatMemberNames,
 } from './memberExtractor.js';
+
+export {
+  roundGoshaRokunyu,
+  roundScore,
+} from './mathUtils.js';

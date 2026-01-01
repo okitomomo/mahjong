@@ -183,7 +183,7 @@ async function recalculateAllGames(roomId, settings) {
     const { getGames } = await import('./gameService.js');
     const { 
       calculateRanks, 
-      calculateOka, 
+      calculateOkaForPlayers, 
       calculateUma, 
       calculateChipScore,
       calculateFinalScoreWithChip,
@@ -225,12 +225,16 @@ async function recalculateAllGames(roomId, settings) {
           )
         : {};
       
+      // オカを一括計算（合計が0になるように調整）
+      const okas = calculateOkaForPlayers(rankedScores, playerCount, okaSettings);
+      
       const calculatedResults = game.results.map((result) => {
         // このメンバーの順位を取得
         const rankedScore = rankedScores.find(rs => rs.memberId === result.memberId);
         const rank = rankedScore?.rank ?? 1;
+        const rankedIndex = rankedScores.findIndex(rs => rs.memberId === result.memberId);
         
-        const oka = calculateOka(result.rawScore, rank, playerCount, okaSettings);
+        const oka = okas[rankedIndex] ?? 0;
         const uma = calculateUma(rank, playerCount, umaSettings);
         const yakitoriScore = yakitoriScores[result.memberId] ?? 0;
         const finalScore = oka + uma + yakitoriScore;

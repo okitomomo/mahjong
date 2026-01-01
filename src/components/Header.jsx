@@ -37,7 +37,7 @@ export function Header() {
             <span className="truncate">麻雀戦績</span>
           </Link>
           
-          <nav className="flex items-center">
+          <nav className="flex items-center gap-2">
             <Link
               to="/rooms"
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -48,6 +48,20 @@ export function Header() {
             >
               部屋一覧
             </Link>
+            
+            {/* 開発環境でのみテストリンクを表示 */}
+            {import.meta.env.DEV && (
+              <Link
+                to="/test"
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === '/test'
+                    ? 'bg-green-100 text-green-700'
+                    : 'text-gray-600 active:bg-gray-100'
+                }`}
+              >
+                テスト
+              </Link>
+            )}
           </nav>
         </div>
       </div>

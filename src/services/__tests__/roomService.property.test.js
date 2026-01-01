@@ -128,8 +128,8 @@ describe('Property 3: デフォルト設定の初期値', () => {
           
           // チップ設定
           expect(settings.chip.enabled).toBe(false);
-          expect(settings.chip.initialCount).toBe(0);
-          expect(settings.chip.pointsPerChip).toBe(5);
+          expect(settings.chip.initialCount).toBe(20);
+          expect(settings.chip.pointsPerChip).toBe(10);
         }
       ),
       { numRuns: 100 }

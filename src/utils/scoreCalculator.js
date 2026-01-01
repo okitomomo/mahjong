@@ -7,13 +7,33 @@
  * @typedef {import('../types/models').ScoreCalculation} ScoreCalculation
  */
 
+import { roundScore, roundGoshaRokunyu } from './mathUtils.js';
+
+/**
+ * 素点を1000の位で五捨六入（百の位を見て判定）
+ * Round raw score to nearest 1000 using go-sha roku-nyu (based on hundreds digit)
+ * 
+ * @param {number} rawScore - 素点 (Raw score)
+ * @returns {number} 1000の位で五捨六入された素点 (Raw score rounded to nearest 1000)
+ */
+export function roundRawScore(rawScore) {
+  // 1000で割って五捨六入し、再び1000を掛ける
+  const divided = rawScore / 1000;
+  const rounded = roundGoshaRokunyu(divided, 0);
+  return rounded * 1000;
+}
+
 /**
  * オカを計算
  * Calculate Oka (starting point adjustment)
  * 
- * 計算式:
- * - 1位の場合: (素点 - 返し点) / 1000 + (返し点 - 開始点) / 1000 × プレイヤー数
- * - 2位以下の場合: (素点 - 返し点) / 1000
+ * 計算手順:
+ * 1. 素点を100の位で五捨六入
+ * 2. (五捨六入後の素点 - 返し点) / 1000 でオカを計算
+ * 3. 2位以下は基本オカのみ、1位は一括計算で調整される
+ * 
+ * 注意: 1位のオカは他のプレイヤーとの関係で決まるため、
+ * 単体計算では正確な値が出ません。calculateOkaForPlayersを使用してください。
  * 
  * @param {number} rawScore - 素点 (Raw score)
  * @param {number} rank - 順位 (1-4) (Rank)
@@ -22,18 +42,60 @@
  * @returns {number} オカ (Oka value)
  */
 export function calculateOka(rawScore, rank, playerCount, okaSettings) {
-  const { startPoints, returnPoints } = okaSettings;
+  const { returnPoints } = okaSettings;
   
-  // 基本オカ: (素点 - 返し点) / 1000
-  const baseOka = (rawScore - returnPoints) / 1000;
+  // 1. 素点を100の位で五捨六入
+  const roundedRawScore = roundRawScore(rawScore);
   
-  // 1位の場合はオカボーナスを追加
+  // 2. 基本オカ: (五捨六入後の素点 - 返し点) / 1000
+  const baseOka = (roundedRawScore - returnPoints) / 1000;
+  
   if (rank === 1) {
-    const okaBonus = ((returnPoints - startPoints) / 1000) * playerCount;
-    return baseOka + okaBonus;
+    // 1位: 単体計算では基本オカ + オカボーナスを返す（参考値）
+    // 実際の値は calculateOkaForPlayers で調整される
+    const { startPoints } = okaSettings;
+    const totalOkaBonus = ((returnPoints - startPoints) / 1000) * playerCount;
+    return roundGoshaRokunyu(baseOka + totalOkaBonus, 0);
+  } else {
+    // 2位以下: 基本オカのみ
+    return roundGoshaRokunyu(baseOka, 0);
+  }
+}
+
+/**
+ * 複数プレイヤーのオカを一括計算（合計が0になるように調整）
+ * Calculate Oka for multiple players (adjusted so total equals 0)
+ * 
+ * @param {Array<{rawScore: number, rank: number}>} players - プレイヤー配列
+ * @param {number} playerCount - プレイヤー数 (3 or 4)
+ * @param {OkaSettings} okaSettings - オカ設定
+ * @returns {Array<number>} 各プレイヤーのオカ配列
+ */
+export function calculateOkaForPlayers(players, playerCount, okaSettings) {
+  const { returnPoints } = okaSettings;
+  
+  // 2位以下のオカを先に計算
+  const okas = [];
+  let nonFirstPlayersOkaSum = 0;
+  
+  players.forEach((player, index) => {
+    if (player.rank !== 1) {
+      // 2位以下: 基本オカのみ
+      const roundedRawScore = roundRawScore(player.rawScore);
+      const baseOka = (roundedRawScore - returnPoints) / 1000;
+      const roundedOka = roundGoshaRokunyu(baseOka, 0);
+      okas[index] = roundedOka;
+      nonFirstPlayersOkaSum += roundedOka;
+    }
+  });
+  
+  // 1位のオカは2位以下の合計のマイナス値
+  const firstPlayerIndex = players.findIndex(p => p.rank === 1);
+  if (firstPlayerIndex !== -1) {
+    okas[firstPlayerIndex] = -nonFirstPlayersOkaSum;
   }
   
-  return baseOka;
+  return okas;
 }
 
 /**
@@ -106,7 +168,7 @@ export function calculateUma(rank, playerCount, umaSettings) {
 export function calculateFinalScore(rawScore, rank, playerCount, okaSettings, umaSettings) {
   const oka = calculateOka(rawScore, rank, playerCount, okaSettings);
   const uma = calculateUma(rank, playerCount, umaSettings);
-  const finalScore = oka + uma;
+  const finalScore = roundScore(oka + uma);
   
   return {
     oka,
@@ -146,14 +208,14 @@ export function calculateYakitoriScores(results, penalty) {
   // ペナルティを正の値として扱う（絶対値を取る）
   const absPenalty = Math.abs(penalty);
   
-  // ヤキトリの人: -(ペナルティ / ヤキトリ人数)
-  const yakitoriPenalty = -(absPenalty / yakitoriCount);
+  // ヤキトリの人: -(ペナルティ / ヤキトリ人数) を五捨六入
+  const yakitoriPenalty = roundScore(-(absPenalty / yakitoriCount));
   yakitoriMembers.forEach(r => {
     scores[r.memberId] = yakitoriPenalty;
   });
   
-  // ヤキトリでない人: +(ペナルティ / ヤキトリでない人数)
-  const nonYakitoriBonus = absPenalty / nonYakitoriCount;
+  // ヤキトリでない人: +(ペナルティ / ヤキトリでない人数) を五捨六入
+  const nonYakitoriBonus = roundScore(absPenalty / nonYakitoriCount);
   nonYakitoriMembers.forEach(r => {
     scores[r.memberId] = nonYakitoriBonus;
   });
@@ -172,7 +234,7 @@ export function calculateYakitoriScores(results, penalty) {
  * @returns {number} チップスコア (Chip score)
  */
 export function calculateChipScore(chipCount, pointsPerChip) {
-  return chipCount * pointsPerChip;
+  return roundScore(chipCount * pointsPerChip);
 }
 
 /**
@@ -186,7 +248,7 @@ export function calculateChipScore(chipCount, pointsPerChip) {
  * @returns {number} 最終スコア（チップ含む） (Final score including chips)
  */
 export function calculateFinalScoreWithChip(finalScore, chipScore) {
-  return finalScore + chipScore;
+  return roundScore(finalScore + chipScore);
 }
 
 /**

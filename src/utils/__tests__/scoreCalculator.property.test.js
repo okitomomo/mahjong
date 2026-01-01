@@ -15,7 +15,9 @@ import {
   calculateFinalScoreWithChip,
   calculateRanks,
   calculateMemberTotalScore,
+  roundRawScore,
 } from '../scoreCalculator.js';
+import { roundScore } from '../mathUtils.js';
 
 /**
  * Feature: mahjong-score-management, Property 14: オカ計算の正確性
@@ -35,11 +37,12 @@ describe('Property 14: オカ計算の正確性', () => {
           
           const oka = calculateOka(rawScore, rank, playerCount, okaSettings);
           
-          const expectedBaseOka = (rawScore - returnPoints) / 1000;
-          const expectedBonus = ((returnPoints - startPoints) / 1000) * playerCount;
-          const expected = expectedBaseOka + expectedBonus;
+          // 五捨六入を適用した期待値を計算
+          const expectedBaseOka = roundScore((rawScore - returnPoints) / 1000);
+          const expectedBonus = roundScore(((returnPoints - startPoints) / 1000) * playerCount);
+          const expected = roundScore(expectedBaseOka + expectedBonus);
           
-          expect(oka).toBeCloseTo(expected, 10);
+          expect(oka).toBe(expected);
         }
       ),
       { numRuns: 100 }
@@ -59,9 +62,10 @@ describe('Property 14: オカ計算の正確性', () => {
           
           const oka = calculateOka(rawScore, rank, playerCount, okaSettings);
           
-          const expected = (rawScore - returnPoints) / 1000;
+          // 五捨六入を適用した期待値を計算
+          const expected = roundScore((rawScore - returnPoints) / 1000);
           
-          expect(oka).toBeCloseTo(expected, 10);
+          expect(oka).toBe(expected);
         }
       ),
       { numRuns: 100 }
@@ -165,11 +169,11 @@ describe('Property 16: 最終スコア計算式', () => {
           
           const expectedOka = calculateOka(rawScore, rank, playerCount, okaSettings);
           const expectedUma = calculateUma(rank, playerCount, umaSettings);
-          const expectedFinalScore = expectedOka + expectedUma;
+          const expectedFinalScore = roundScore(expectedOka + expectedUma);
           
-          expect(result.oka).toBeCloseTo(expectedOka, 10);
-          expect(result.uma).toBeCloseTo(expectedUma, 10);
-          expect(result.finalScore).toBeCloseTo(expectedFinalScore, 10);
+          expect(result.oka).toBe(expectedOka);
+          expect(result.uma).toBe(expectedUma);
+          expect(result.finalScore).toBe(expectedFinalScore);
         }
       ),
       { numRuns: 100 }
@@ -208,14 +212,14 @@ describe('Property 18-2: 最終スコア（チップ含む）の計算', () => {
   it('最終スコア（チップ含む）は 最終スコア（チップ除く） + チップスコア で計算される', () => {
     fc.assert(
       fc.property(
-        fc.float({ min: -1000, max: 1000, noNaN: true }), // finalScore
-        fc.float({ min: -100, max: 100, noNaN: true }), // chipScore
+        fc.integer({ min: -10000, max: 10000 }).map(n => n / 10), // finalScore (小数点1位まで)
+        fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // chipScore (小数点1位まで)
         (finalScore, chipScore) => {
           const finalScoreWithChip = calculateFinalScoreWithChip(finalScore, chipScore);
           
-          const expected = finalScore + chipScore;
+          const expected = roundScore(finalScore + chipScore);
           
-          expect(finalScoreWithChip).toBeCloseTo(expected, 10);
+          expect(finalScoreWithChip).toBe(expected);
         }
       ),
       { numRuns: 100 }
@@ -311,12 +315,12 @@ describe('Property 20: 合計スコアの計算', () => {
                 memberName: fc.string(),
                 rawScore: fc.integer({ min: 0, max: 100000 }),
                 rank: fc.integer({ min: 1, max: 4 }),
-                uma: fc.float({ noNaN: true }),
-                oka: fc.float({ noNaN: true }),
+                uma: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
+                oka: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
                 chipCount: fc.integer({ min: -10, max: 10 }),
-                chipScore: fc.float({ noNaN: true }),
-                finalScore: fc.float({ noNaN: true }),
-                finalScoreWithChip: fc.float({ noNaN: true }),
+                chipScore: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
+                finalScore: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
+                finalScoreWithChip: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
               }),
               { minLength: 3, maxLength: 4 }
             ),
@@ -369,12 +373,12 @@ describe('Property 22: 参加半荘数のカウント', () => {
                 memberName: fc.string(),
                 rawScore: fc.integer({ min: 0, max: 100000 }),
                 rank: fc.integer({ min: 1, max: 4 }),
-                uma: fc.float({ noNaN: true }),
-                oka: fc.float({ noNaN: true }),
+                uma: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
+                oka: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
                 chipCount: fc.integer({ min: -10, max: 10 }),
-                chipScore: fc.float({ noNaN: true }),
-                finalScore: fc.float({ noNaN: true }),
-                finalScoreWithChip: fc.float({ noNaN: true }),
+                chipScore: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
+                finalScore: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
+                finalScoreWithChip: fc.integer({ min: -1000, max: 1000 }).map(n => n / 10), // 小数点1位まで
               }),
               { minLength: 3, maxLength: 4 }
             ),
